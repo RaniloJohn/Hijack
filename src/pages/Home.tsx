@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   authenticateServerRequest, 
   getLogs, 
@@ -105,7 +105,7 @@ export default function Home() {
   // Lab HUD states
   const [isHudOpen, setIsHudOpen] = useState(true);
   const [hudTab, setHudTab] = useState<'cookies' | 'sessions' | 'logs' | 'defenses'>('cookies');
-  const [cookieInputName, setCookieInputName] = useState('canvas_session_id');
+  const [cookieInputName, setCookieInputName] = useState('rivancyber_session_id');
   const [cookieInputValue, setCookieInputValue] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   
@@ -291,8 +291,8 @@ export default function Home() {
       <aside className="w-20 sm:w-24 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-6 gap-6 shrink-0 z-20">
         
         {/* Logo Icon */}
-        <div className="p-2.5 bg-blue-600/10 border border-blue-500/20 rounded-xl text-blue-400 mb-2">
-          <GraduationCap className="w-7 sm:w-8 h-7 sm:h-8" />
+        <div className="p-1 mb-2">
+          <img src="/logo.png" alt="RivanCyber Logo" className="w-12 h-12 object-contain" />
         </div>
 
         {/* Navigation Items */}
@@ -796,7 +796,7 @@ export default function Home() {
                           />
                           <div>
                             <span className="text-sm font-semibold text-slate-200 block">Professor Alice Smith</span>
-                            <span className="text-xs text-slate-500">alice.smith@canvas.edu</span>
+                            <span className="text-xs text-slate-500">alice.smith@rivancyber.edu</span>
                           </div>
                         </div>
                         <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded tracking-wide">
@@ -813,7 +813,7 @@ export default function Home() {
                           />
                           <div>
                             <span className="text-sm font-semibold text-slate-200 block">Bob Jenkins</span>
-                            <span className="text-xs text-slate-500">bob.jenkins@canvas.edu</span>
+                            <span className="text-xs text-slate-500">bob.jenkins@rivancyber.edu</span>
                           </div>
                         </div>
                         <span className="text-[10px] uppercase font-bold text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded tracking-wide">
@@ -1590,7 +1590,7 @@ export default function Home() {
               <div className="p-3.5 bg-red-500/10 border border-red-500/20 text-red-400 rounded-full">
                 <Lock className="w-8 h-8" />
               </div>
-              <h3 className="text-lg font-bold text-white tracking-wide">CANVAS ACCESS VIOLATION</h3>
+              <h3 className="text-lg font-bold text-white tracking-wide">RIVANCYBER ACCESS VIOLATION</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
                 {fileErrorMsg}
               </p>

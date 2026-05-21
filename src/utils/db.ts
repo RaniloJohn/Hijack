@@ -1,4 +1,4 @@
-﻿// Custom Database and Server-Side Simulator for Session Hijacking Lab
+// Custom Database and Server-Side Simulator for Session Hijacking Lab
 import { cookieManager } from './cookies';
 
 export interface User {
@@ -70,15 +70,15 @@ export interface LogEntry {
 }
 
 // LocalStorage Keys
-const USERS_KEY = 'canvas_users';
-const SESSIONS_KEY = 'canvas_sessions';
-const COURSES_KEY = 'canvas_courses';
-const ASSIGNMENTS_KEY = 'canvas_assignments';
-const SUBMISSIONS_KEY = 'canvas_submissions';
-const MESSAGES_KEY = 'canvas_messages';
-const CALENDAR_KEY = 'canvas_calendar';
-const LOGS_KEY = 'canvas_db_logs';
-const PROTECTIONS_KEY = 'canvas_security_protections';
+const USERS_KEY = 'rivancyber_users';
+const SESSIONS_KEY = 'rivancyber_sessions';
+const COURSES_KEY = 'rivancyber_courses';
+const ASSIGNMENTS_KEY = 'rivancyber_assignments';
+const SUBMISSIONS_KEY = 'rivancyber_submissions';
+const MESSAGES_KEY = 'rivancyber_messages';
+const CALENDAR_KEY = 'rivancyber_calendar';
+const LOGS_KEY = 'rivancyber_db_logs';
+const PROTECTIONS_KEY = 'rivancyber_security_protections';
 
 // Helper to generate a realistic random session token
 function generateRandomSessionId(): string {
@@ -156,7 +156,7 @@ const defaultUsers: Record<string, User & { passwordHash: string }> = {
     passwordHash: 'alice123',
     name: 'Professor Alice Smith',
     role: 'teacher',
-    email: 'alice.smith@canvas.edu',
+    email: 'alice.smith@rivancyber.edu',
     avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80'
   },
   bob: {
@@ -164,7 +164,7 @@ const defaultUsers: Record<string, User & { passwordHash: string }> = {
     passwordHash: 'bob123',
     name: 'Bob Jenkins',
     role: 'student',
-    email: 'bob.jenkins@canvas.edu',
+    email: 'bob.jenkins@rivancyber.edu',
     avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80'
   }
 };
@@ -337,10 +337,10 @@ export function loginUser(username: string, passwordHash: string): { success: bo
   localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
 
   logTransaction('sql', `INSERT INTO sessions (session_id, username, created_at, user_agent, ip_address) VALUES ('${sessionId}', '${lowerUsername}', datetime('now'), '${userAgent.substring(0, 30)}...', '${ipAddress}');`);
-  logTransaction('http', `POST /api/login - 200 OK - Set-Cookie: canvas_session_id=${sessionId}`);
+  logTransaction('http', `POST /api/login - 200 OK - Set-Cookie: rivancyber_session_id=${sessionId}`);
 
   const protections = getSecurityProtections();
-  cookieManager.set('canvas_session_id', sessionId, {
+  cookieManager.set('rivancyber_session_id', sessionId, {
     maxAge: 86400,
     httpOnly: protections.httpOnly,
     path: '/'
@@ -360,7 +360,7 @@ export function logoutUser(sessionId: string) {
     logTransaction('http', `POST /api/logout - 200 OK - Session ${sessionId} destroyed`);
   }
   
-  cookieManager.delete('canvas_session_id');
+  cookieManager.delete('rivancyber_session_id');
 }
 
 export function getSessions(): Record<string, Session> {
@@ -374,7 +374,7 @@ export function getSessions(): Record<string, Session> {
 
 export function authenticateServerRequest(): { user: User | null; session: Session | null; logs: string[] } {
   initializeDB();
-  const sessionId = cookieManager.getServerCookie('canvas_session_id');
+  const sessionId = cookieManager.getServerCookie('rivancyber_session_id');
   const protections = getSecurityProtections();
   const currentUA = window.navigator.userAgent;
 
@@ -390,7 +390,7 @@ export function authenticateServerRequest(): { user: User | null; session: Sessi
 
   if (!session) {
     logTransaction('http', `GET /api/user - 401 Unauthorized - Invalid session ID '${sessionId}'`);
-    cookieManager.delete('canvas_session_id');
+    cookieManager.delete('rivancyber_session_id');
     return { user: null, session: null, logs: [] };
   }
 
@@ -425,9 +425,9 @@ export function authenticateServerRequest(): { user: User | null; session: Sessi
     localStorage.setItem(SESSIONS_KEY, JSON.stringify(sessions));
 
     logTransaction('sql', `UPDATE sessions SET session_id = '${newSessionId}' WHERE session_id = '${sessionId}'; -- TOKEN ROTATION`);
-    logTransaction('http', `GET /api/user - 200 OK (Rotated) - Set-Cookie: canvas_session_id=${newSessionId}`);
+    logTransaction('http', `GET /api/user - 200 OK (Rotated) - Set-Cookie: rivancyber_session_id=${newSessionId}`);
 
-    cookieManager.set('canvas_session_id', newSessionId, {
+    cookieManager.set('rivancyber_session_id', newSessionId, {
       maxAge: 86400,
       httpOnly: protections.httpOnly,
       path: '/'

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { loginUser, registerUser, getSecurityProtections, initializeDB } from '../utils/db';
 import { GraduationCap, UserCheck, ShieldAlert, ArrowRight, UserPlus, LogIn, Mail, Lock, User } from 'lucide-react';
 
@@ -16,7 +16,6 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [protections, setProtections] = useState({ httpOnly: false, sessionBinding: false, tokenRotation: false });
-
   useEffect(() => {
     initializeDB();
     setProtections(getSecurityProtections());
@@ -41,8 +40,20 @@ export default function Login() {
 
     const res = loginUser(username, password);
     if (res.success) {
-      // Refresh current page to load Dashboard (App.tsx router handles auth state)
-      window.location.reload();
+      setSuccess('Login successful! Redirecting...');
+      // Trigger native browser credential storage if supported
+      if (window.PasswordCredential) {
+        try {
+          const cred = new PasswordCredential({
+            id: username,
+            password: password
+          });
+          navigator.credentials.store(cred)
+            .catch((err) => console.warn('Native credentials store failed:', err));
+        } catch (err) {
+          console.warn('Native credentials error:', err);
+        }
+      }
     } else {
       setError(res.error || 'Login failed');
     }
@@ -73,11 +84,34 @@ export default function Login() {
   const quickLogin = (user: 'alice' | 'bob') => {
     setError(null);
     setSuccess(null);
+    setIsRegister(false);
     const pass = user === 'alice' ? 'alice123' : 'bob123';
-    const res = loginUser(user, pass);
-    if (res.success) {
-      window.location.reload();
-    }
+    
+    // Fill the inputs first for UI feedback and browser password manager heuristics
+    setUsername(user);
+    setPassword(pass);
+
+    // Wait a short time for state to propagate to DOM before authentication and credentials storage
+    setTimeout(() => {
+      const res = loginUser(user, pass);
+      if (res.success) {
+        setSuccess('Login successful! Redirecting...');
+        if (window.PasswordCredential) {
+          try {
+            const cred = new PasswordCredential({
+              id: user,
+              password: pass
+            });
+            navigator.credentials.store(cred)
+              .catch((err) => console.warn('Native credentials store failed:', err));
+          } catch (err) {
+            console.warn('Native credentials error:', err);
+          }
+        }
+      } else {
+        setError(res.error || 'Login failed');
+      }
+    }, 100);
   };
 
   return (
@@ -91,15 +125,12 @@ export default function Login() {
         
         {/* Logo and Header */}
         <div className="text-center">
-          <div className="inline-flex items-center justify-center p-3.5 bg-blue-600/20 border border-blue-500/30 rounded-2xl shadow-inner shadow-blue-500/10 mb-4">
-            <GraduationCap className="h-12 w-12 text-blue-400" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.png" alt="RivanCyber Logo" className="h-20 w-auto object-contain" />
           </div>
-          <h2 className="text-4xl font-extrabold text-white tracking-tight">
-            canvas
+          <h2 className="text-3xl font-extrabold text-white tracking-tight">
+            RivanCyber Training Center
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Session Hijacking Laboratory & LMS Portal
-          </p>
         </div>
 
         {/* Card Body */}
@@ -108,12 +139,13 @@ export default function Login() {
           {/* Toggle Tabs */}
           <div className="flex border-b border-slate-700">
             <button
+              disabled={!!success}
               onClick={() => { setIsRegister(false); setError(null); setSuccess(null); }}
               className={`flex-1 pb-4 text-center text-sm font-semibold transition-all border-b-2 ${
                 !isRegister 
                   ? 'border-blue-500 text-blue-400' 
                   : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
+              } ${success ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className="flex items-center justify-center gap-2">
                 <LogIn className="w-4 h-4" />
@@ -121,12 +153,13 @@ export default function Login() {
               </span>
             </button>
             <button
+              disabled={!!success}
               onClick={() => { setIsRegister(true); setError(null); setSuccess(null); }}
               className={`flex-1 pb-4 text-center text-sm font-semibold transition-all border-b-2 ${
                 isRegister 
                   ? 'border-blue-500 text-blue-400' 
                   : 'border-transparent text-slate-400 hover:text-slate-200'
-              }`}
+              } ${success ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className="flex items-center justify-center gap-2">
                 <UserPlus className="w-4 h-4" />
@@ -164,10 +197,11 @@ export default function Login() {
                     </div>
                     <input
                       type="text"
+                      disabled={!!success}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Charlie Brown"
-                      className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                      className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -181,10 +215,11 @@ export default function Login() {
                     </div>
                     <input
                       type="email"
+                      disabled={!!success}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="charlie@canvas.edu"
-                      className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                      placeholder="charlie@rivancyber.edu"
+                      className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -195,23 +230,25 @@ export default function Login() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
+                      disabled={!!success}
                       onClick={() => setRole('student')}
                       className={`py-2 px-4 rounded-xl border text-sm font-semibold transition-all ${
                         role === 'student'
                           ? 'bg-blue-600/10 border-blue-500 text-blue-400'
                           : 'bg-slate-900 border-slate-700/60 text-slate-400 hover:text-slate-300'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       Student
                     </button>
                     <button
                       type="button"
+                      disabled={!!success}
                       onClick={() => setRole('teacher')}
                       className={`py-2 px-4 rounded-xl border text-sm font-semibold transition-all ${
                         role === 'teacher'
                           ? 'bg-blue-600/10 border-blue-500 text-blue-400'
                           : 'bg-slate-900 border-slate-700/60 text-slate-400 hover:text-slate-300'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       Teacher
                     </button>
@@ -229,10 +266,14 @@ export default function Login() {
                 </div>
                 <input
                   type="text"
+                  id="username"
+                  name="username"
+                  disabled={!!success}
+                  autoComplete={isRegister ? "new-username" : "username"}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Enter username"
-                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -246,10 +287,14 @@ export default function Login() {
                 </div>
                 <input
                   type="password"
+                  id="password"
+                  name="password"
+                  disabled={!!success}
+                  autoComplete={isRegister ? "new-password" : "current-password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
+                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -257,9 +302,12 @@ export default function Login() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 mt-6 cursor-pointer"
+              disabled={!!success}
+              className={`w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 mt-6 cursor-pointer ${
+                success ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
-              <span>{isRegister ? 'Register Account' : 'Sign In'}</span>
+              <span>{success ? 'Signing In...' : isRegister ? 'Register Account' : 'Sign In'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -273,16 +321,22 @@ export default function Login() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
+                  disabled={!!success}
                   onClick={() => quickLogin('bob')}
-                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 py-2 px-3 rounded-xl text-xs font-medium transition-all text-left flex flex-col cursor-pointer"
+                  className={`bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 py-2 px-3 rounded-xl text-xs font-medium transition-all text-left flex flex-col cursor-pointer ${
+                    success ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   <span className="text-slate-400 font-semibold">Bob (Student)</span>
                   <span className="text-[10px] text-slate-500">Pass: bob123</span>
                 </button>
                 <button
                   type="button"
+                  disabled={!!success}
                   onClick={() => quickLogin('alice')}
-                  className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 py-2 px-3 rounded-xl text-xs font-medium transition-all text-left flex flex-col cursor-pointer"
+                  className={`bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 py-2 px-3 rounded-xl text-xs font-medium transition-all text-left flex flex-col cursor-pointer ${
+                    success ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
                 >
                   <span className="text-blue-400 font-semibold">Alice (Professor)</span>
                   <span className="text-[10px] text-slate-500">Pass: alice123</span>
@@ -290,19 +344,6 @@ export default function Login() {
               </div>
             </div>
           )}
-
-          {/* Security Notice HUD indicator */}
-          <div className="mt-4 pt-3.5 border-t border-slate-700/50 flex justify-between items-center text-[11px] text-slate-500">
-            <span>Security Protections:</span>
-            <div className="flex gap-2">
-              <span className={`px-1.5 py-0.5 rounded font-mono ${protections.httpOnly ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                HttpOnly:{protections.httpOnly ? 'ON' : 'OFF'}
-              </span>
-              <span className={`px-1.5 py-0.5 rounded font-mono ${protections.sessionBinding ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                Binding:{protections.sessionBinding ? 'ON' : 'OFF'}
-              </span>
-            </div>
-          </div>
 
         </div>
 

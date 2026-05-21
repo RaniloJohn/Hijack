@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import { authenticateServerRequest } from './utils/db';
@@ -29,7 +29,12 @@ export default function App() {
     // Listen for cookie changes
     const unsubscribeCookies = subscribeToCookies(() => {
       if (isCheckingAuthRef.current) return;
-      checkAuth();
+      if (window.location.pathname === '/login') {
+        // Delay auth check slightly to allow browser to trigger save credentials prompt
+        setTimeout(checkAuth, 800);
+      } else {
+        checkAuth();
+      }
     });
 
     const onLocationChange = () => {
@@ -65,7 +70,7 @@ export default function App() {
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center font-sans">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-400 font-medium">Loading Canvas...</p>
+          <p className="text-slate-400 font-medium">Loading RivanCyber Training Center...</p>
         </div>
       </div>
     );

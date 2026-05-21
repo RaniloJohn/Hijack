@@ -1,4 +1,4 @@
-﻿// Custom Cookie Manager for Session Hijacking Lab
+// Custom Cookie Manager for Session Hijacking Lab
 // This wrapper manages document.cookie and supports a mock HttpOnly jar for educational simulation.
 
 export interface CookieOptions {
@@ -28,7 +28,7 @@ function notifyListeners() {
 
 // We store HttpOnly cookies in local storage so the simulated server can read them,
 // but JavaScript (document.cookie) cannot access them.
-const HTTP_ONLY_KEY = 'canvas_http_only_cookies';
+const HTTP_ONLY_KEY = 'rivancyber_http_only_cookies';
 
 function getHttpOnlyCookies(): Record<string, string> {
   try {
