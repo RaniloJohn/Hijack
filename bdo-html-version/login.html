@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BDO Online - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-white font-sans">
+    <div class="min-h-screen flex bg-white font-sans">
+      
+        <!-- Left Side: Graphic -->
+        <div class="hidden md:block md:w-1/2 relative bg-[#f8f9fa]">
+            <img 
+                src="images/login1.png" 
+                alt="BDO Login Graphic" 
+                class="w-full h-full object-cover absolute inset-0"
+            />
+        </div>
+
+        <!-- Right Side: Login Form -->
+        <div class="w-full md:w-1/2 flex flex-col items-center justify-center p-8 lg:p-12">
+            
+            <div class="w-full max-w-[400px]">
+                <!-- Logo -->
+                <div class="flex justify-center mb-8">
+                    <a href="index.html">
+                        <img src="images/login2.png" alt="BDO Online" class="h-10" />
+                    </a>
+                </div>
+
+                <!-- Welcome Text -->
+                <h2 class="text-[22px] font-bold text-[#333] mb-8 text-center">
+                    Welcome to BDO Online!
+                </h2>
+
+                <!-- Form Fields -->
+                <form class="space-y-5" onsubmit="event.preventDefault();">
+                    <div class="space-y-2">
+                        <label class="block text-[13px] text-[#333]">Username</label>
+                        <input 
+                            type="text" 
+                            class="w-full border border-blue-200 rounded-md px-4 py-2.5 outline-none focus:border-[#0070d2] focus:ring-1 focus:ring-[#0070d2] transition-all"
+                        />
+                    </div>
+                    
+                    <div class="space-y-2 relative">
+                        <label class="block text-[13px] text-[#333]">Password</label>
+                        <div class="relative">
+                            <input 
+                                type="password" 
+                                class="w-full border border-blue-200 rounded-md px-4 py-2.5 outline-none focus:border-[#0070d2] focus:ring-1 focus:ring-[#0070d2] transition-all pr-10"
+                            />
+                            <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <i data-lucide="eye-off" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        class="bg-[#0070d2] hover:bg-[#0054a6] text-white font-bold py-2.5 px-6 rounded-md text-[14px] transition-colors mt-2 w-auto"
+                    >
+                        Log in
+                    </button>
+                </form>
+
+                <hr class="my-8 border-gray-200" />
+
+                <!-- Helper Links -->
+                <div class="space-y-6 text-[13px] text-[#333]">
+                    <p>
+                        Don't have Online Banking yet? <a href="#" class="text-[#0070d2] font-bold hover:underline">Sign up</a>
+                    </p>
+
+                    <div>
+                        <p class="mb-2">Need help logging in?</p>
+                        <a href="#" class="block text-[#0070d2] hover:underline mb-1">I'd like to get my username</a>
+                        <a href="#" class="block text-[#0070d2] hover:underline">I'd like to reset my password</a>
+                    </div>
+
+                    <p>
+                        Need more information? Go <a href="#" class="text-[#0070d2] font-bold hover:underline">here</a>
+                    </p>
+                </div>
+
+                <hr class="my-8 border-gray-200" />
+
+                <!-- Quick Actions Grid -->
+                <div class="grid grid-cols-4 gap-y-6 gap-x-2">
+                    <a href="#" class="flex flex-col items-center text-center group">
+                        <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#0070d2] mb-2 group-hover:bg-[#0070d2] group-hover:text-white transition-colors">
+                            <i data-lucide="file-edit" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-[10px] text-[#0070d2] leading-tight">Apply Now</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center text-center group">
+                        <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#0070d2] mb-2 group-hover:bg-[#0070d2] group-hover:text-white transition-colors">
+                            <i data-lucide="credit-card" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-[10px] text-[#0070d2] leading-tight">Activate Credit<br/>Card</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center text-center group">
+                        <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#0070d2] mb-2 group-hover:bg-[#0070d2] group-hover:text-white transition-colors">
+                            <i data-lucide="history" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-[10px] text-[#0070d2] leading-tight">Remit Status<br/>Inquiry</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center text-center group">
+                        <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#0070d2] mb-2 group-hover:bg-[#0070d2] group-hover:text-white transition-colors">
+                            <i data-lucide="trending-up" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-[10px] text-[#0070d2] leading-tight">My Trust<br/>Investments</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center text-center group">
+                        <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#0070d2] mb-2 group-hover:bg-[#0070d2] group-hover:text-white transition-colors">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-[10px] text-[#0070d2] leading-tight">Branch<br/>Appointment</span>
+                    </a>
+                    <a href="#" class="flex flex-col items-center text-center group">
+                        <div class="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-[#0070d2] mb-2 group-hover:bg-[#0070d2] group-hover:text-white transition-colors">
+                            <i data-lucide="help-circle" class="w-4 h-4"></i>
+                        </div>
+                        <span class="text-[10px] text-[#0070d2] leading-tight">FAQs</span>
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+      lucide.createIcons();
+    </script>
+</body>
+</html>

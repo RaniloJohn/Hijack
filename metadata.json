@@ -1,0 +1,6 @@
+{
+  "name": "BDO Personal Replication",
+  "description": "A high-fidelity replication of the BDO Personal banking website landing page using React and Tailwind CSS.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
