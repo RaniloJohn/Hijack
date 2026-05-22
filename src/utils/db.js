@@ -1,4 +1,4 @@
-﻿// Custom Database and Server-Side Simulator for Session Hijacking Lab
+// Custom Database and Server-Side Simulator for Session Hijacking Lab
 
 (function() {
   const USERS_KEY = 'canvas_users';
@@ -88,6 +88,14 @@
       role: 'student',
       email: 'bob.jenkins@rivancyber.edu',
       avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80'
+    },
+    ranilojohn: {
+      username: 'ranilojohn',
+      passwordHash: 'ranilojohn123',
+      name: 'Ranilo John',
+      role: 'student',
+      email: 'ranilojohn@rivancyber.edu',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80'
     }
   };
 
@@ -118,11 +126,25 @@
   ];
 
   window.initializeDB = function() {
+    let usersCreated = false;
     if (!localStorage.getItem(USERS_KEY)) {
       localStorage.setItem(USERS_KEY, JSON.stringify(defaultUsers));
       window.logTransaction('sql', "CREATE TABLE users (username VARCHAR(50) PRIMARY KEY, password_hash VARCHAR(100), name VARCHAR(100), role VARCHAR(20), email VARCHAR(100), avatar TEXT);");
       window.logTransaction('sql', "INSERT INTO users VALUES ('alice', 'alice123', 'Professor Alice Smith', 'teacher', ...);");
       window.logTransaction('sql', "INSERT INTO users VALUES ('bob', 'bob123', 'Bob Jenkins', 'student', ...);");
+      window.logTransaction('sql', "INSERT INTO users VALUES ('ranilojohn', 'ranilojohn123', 'Ranilo John', 'student', ...);");
+      usersCreated = true;
+    }
+
+    if (!usersCreated) {
+      try {
+        const storedUsers = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+        if (!storedUsers.ranilojohn) {
+          storedUsers.ranilojohn = defaultUsers.ranilojohn;
+          localStorage.setItem(USERS_KEY, JSON.stringify(storedUsers));
+          window.logTransaction('sql', "INSERT INTO users VALUES ('ranilojohn', 'ranilojohn123', 'Ranilo John', 'student', ...);");
+        }
+      } catch (e) {}
     }
 
     if (!localStorage.getItem(SESSIONS_KEY)) {
