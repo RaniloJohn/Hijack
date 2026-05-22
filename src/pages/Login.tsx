@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { loginUser, registerUser, getSecurityProtections, initializeDB } from '../utils/db';
-import { GraduationCap, UserCheck, ShieldAlert, ArrowRight, UserPlus, LogIn, Mail, Lock, User } from 'lucide-react';
+import { loginUser, registerUser, getSecurityProtections, initializeDB, resetDB } from '../utils/db';
+import { GraduationCap, UserCheck, ShieldAlert, ArrowRight, UserPlus, LogIn, Mail, Lock, User, RefreshCw } from 'lucide-react';
 
 export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   
   // Form fields
   const [username, setUsername] = useState('');
@@ -16,6 +17,7 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [protections, setProtections] = useState({ httpOnly: false, sessionBinding: false, tokenRotation: false });
+
   useEffect(() => {
     initializeDB();
     setProtections(getSecurityProtections());
@@ -30,6 +32,7 @@ export default function Login() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRedirecting) return;
     setError(null);
     setSuccess(null);
 
@@ -41,6 +44,7 @@ export default function Login() {
     const res = loginUser(username, password);
     if (res.success) {
       setSuccess('Login successful! Redirecting...');
+      setIsRedirecting(true);
       // Trigger native browser credential storage if supported
       if (window.PasswordCredential) {
         try {
@@ -54,6 +58,9 @@ export default function Login() {
           console.warn('Native credentials error:', err);
         }
       }
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000);
     } else {
       setError(res.error || 'Login failed');
     }
@@ -61,6 +68,7 @@ export default function Login() {
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isRedirecting) return;
     setError(null);
     setSuccess(null);
 
@@ -82,6 +90,7 @@ export default function Login() {
   };
 
   const quickLogin = (user: 'alice' | 'bob') => {
+    if (isRedirecting) return;
     setError(null);
     setSuccess(null);
     setIsRegister(false);
@@ -96,6 +105,7 @@ export default function Login() {
       const res = loginUser(user, pass);
       if (res.success) {
         setSuccess('Login successful! Redirecting...');
+        setIsRedirecting(true);
         if (window.PasswordCredential) {
           try {
             const cred = new PasswordCredential({
@@ -108,6 +118,9 @@ export default function Login() {
             console.warn('Native credentials error:', err);
           }
         }
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 1000);
       } else {
         setError(res.error || 'Login failed');
       }
@@ -139,13 +152,13 @@ export default function Login() {
           {/* Toggle Tabs */}
           <div className="flex border-b border-slate-700">
             <button
-              disabled={!!success}
+              disabled={isRedirecting}
               onClick={() => { setIsRegister(false); setError(null); setSuccess(null); }}
               className={`flex-1 pb-4 text-center text-sm font-semibold transition-all border-b-2 ${
                 !isRegister 
                   ? 'border-blue-500 text-blue-400' 
                   : 'border-transparent text-slate-400 hover:text-slate-200'
-              } ${success ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${isRedirecting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className="flex items-center justify-center gap-2">
                 <LogIn className="w-4 h-4" />
@@ -153,13 +166,13 @@ export default function Login() {
               </span>
             </button>
             <button
-              disabled={!!success}
+              disabled={isRedirecting}
               onClick={() => { setIsRegister(true); setError(null); setSuccess(null); }}
               className={`flex-1 pb-4 text-center text-sm font-semibold transition-all border-b-2 ${
                 isRegister 
                   ? 'border-blue-500 text-blue-400' 
                   : 'border-transparent text-slate-400 hover:text-slate-200'
-              } ${success ? 'opacity-50 cursor-not-allowed' : ''}`}
+              } ${isRedirecting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <span className="flex items-center justify-center gap-2">
                 <UserPlus className="w-4 h-4" />
@@ -197,11 +210,10 @@ export default function Login() {
                     </div>
                     <input
                       type="text"
-                      disabled={!!success}
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Charlie Brown"
-                      className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
                     />
                   </div>
                 </div>
@@ -215,11 +227,10 @@ export default function Login() {
                     </div>
                     <input
                       type="email"
-                      disabled={!!success}
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="charlie@rivancyber.edu"
-                      className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
                     />
                   </div>
                 </div>
@@ -230,7 +241,7 @@ export default function Login() {
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
-                      disabled={!!success}
+                      disabled={isRedirecting}
                       onClick={() => setRole('student')}
                       className={`py-2 px-4 rounded-xl border text-sm font-semibold transition-all ${
                         role === 'student'
@@ -242,7 +253,7 @@ export default function Login() {
                     </button>
                     <button
                       type="button"
-                      disabled={!!success}
+                      disabled={isRedirecting}
                       onClick={() => setRole('teacher')}
                       className={`py-2 px-4 rounded-xl border text-sm font-semibold transition-all ${
                         role === 'teacher'
@@ -268,12 +279,11 @@ export default function Login() {
                   type="text"
                   id="username"
                   name="username"
-                  disabled={!!success}
                   autoComplete={isRegister ? "new-username" : "username"}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Enter username"
-                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
                 />
               </div>
             </div>
@@ -289,12 +299,11 @@ export default function Login() {
                   type="password"
                   id="password"
                   name="password"
-                  disabled={!!success}
                   autoComplete={isRegister ? "new-password" : "current-password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl pl-10 pr-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 transition-all text-sm"
                 />
               </div>
             </div>
@@ -302,12 +311,11 @@ export default function Login() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={!!success}
               className={`w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow-lg shadow-blue-600/20 hover:shadow-blue-500/30 transition-all flex items-center justify-center gap-2 mt-6 cursor-pointer ${
-                success ? 'opacity-50 cursor-not-allowed' : ''
+                isRedirecting ? 'opacity-50 cursor-not-allowed' : ''
               }`}
             >
-              <span>{success ? 'Signing In...' : isRegister ? 'Register Account' : 'Sign In'}</span>
+              <span>{isRedirecting ? 'Signing In...' : isRegister ? 'Register Account' : 'Sign In'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
@@ -321,10 +329,10 @@ export default function Login() {
               <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
-                  disabled={!!success}
+                  disabled={isRedirecting}
                   onClick={() => quickLogin('bob')}
                   className={`bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 py-2 px-3 rounded-xl text-xs font-medium transition-all text-left flex flex-col cursor-pointer ${
-                    success ? 'opacity-50 cursor-not-allowed' : ''
+                    isRedirecting ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   <span className="text-slate-400 font-semibold">Bob (Student)</span>
@@ -332,10 +340,10 @@ export default function Login() {
                 </button>
                 <button
                   type="button"
-                  disabled={!!success}
+                  disabled={isRedirecting}
                   onClick={() => quickLogin('alice')}
                   className={`bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 py-2 px-3 rounded-xl text-xs font-medium transition-all text-left flex flex-col cursor-pointer ${
-                    success ? 'opacity-50 cursor-not-allowed' : ''
+                    isRedirecting ? 'opacity-50 cursor-not-allowed' : ''
                   }`}
                 >
                   <span className="text-blue-400 font-semibold">Alice (Professor)</span>
@@ -344,7 +352,22 @@ export default function Login() {
               </div>
             </div>
           )}
+        </div>
 
+        {/* Reset Database Lab Utility */}
+        <div className="text-center">
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm("Are you sure you want to clear the local database? This will reset all accounts, sessions, and settings to defaults.")) {
+                resetDB();
+              }
+            }}
+            className="text-xs text-slate-500 hover:text-slate-400 hover:underline transition-colors cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Reset Lab Database</span>
+          </button>
         </div>
 
       </div>

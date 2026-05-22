@@ -29,12 +29,9 @@ export default function App() {
     // Listen for cookie changes
     const unsubscribeCookies = subscribeToCookies(() => {
       if (isCheckingAuthRef.current) return;
-      if (window.location.pathname === '/login') {
-        // Delay auth check slightly to allow browser to trigger save credentials prompt
-        setTimeout(checkAuth, 800);
-      } else {
-        checkAuth();
-      }
+      // If we are on the login page, we let the Login component handle the transition explicitly
+      if (window.location.pathname === '/login') return;
+      checkAuth();
     });
 
     const onLocationChange = () => {
