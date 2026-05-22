@@ -19,6 +19,84 @@
     window.dispatchEvent(new Event('cookies_changed'));
   }
 
+  // Shim for document.cookie if not supported (e.g. running under file:// protocol)
+  let useCookieShim = typeof window !== 'undefined' && window.location && window.location.protocol === 'file:';
+  if (!useCookieShim && typeof document !== 'undefined') {
+    try {
+      document.cookie = "canvas_cookie_test=1";
+      if (document.cookie.indexOf("canvas_cookie_test=1") === -1) {
+        useCookieShim = true;
+      }
+      document.cookie = "canvas_cookie_test=; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    } catch (e) {
+      useCookieShim = true;
+    }
+  }
+
+  if (useCookieShim) {
+    const MOCK_NORMAL_COOKIES_KEY = 'canvas_mock_normal_cookies';
+    
+    function getMockCookies() {
+      try {
+        const val = localStorage.getItem(MOCK_NORMAL_COOKIES_KEY);
+        return val ? JSON.parse(val) : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function setMockCookies(cookies) {
+      try {
+        localStorage.setItem(MOCK_NORMAL_COOKIES_KEY, JSON.stringify(cookies));
+      } catch (e) {
+        console.error("Failed to save mock cookies to localStorage:", e);
+      }
+    }
+
+    const cookieDescriptor = {
+      configurable: true,
+      enumerable: true,
+      get() {
+        const cookies = getMockCookies();
+        return Object.entries(cookies)
+          .map(([k, v]) => `${k}=${v}`)
+          .join('; ');
+      },
+      set(val) {
+        if (typeof val !== 'string' || !val) return;
+        const parts = val.split(';');
+        const mainPart = parts[0].trim();
+        const eqIdx = mainPart.indexOf('=');
+        if (eqIdx === -1) return;
+        
+        const name = mainPart.substring(0, eqIdx).trim();
+        const value = mainPart.substring(eqIdx + 1).trim();
+        
+        const cookies = getMockCookies();
+        const lowerVal = val.toLowerCase();
+        
+        if (lowerVal.includes('max-age=0') || lowerVal.includes('1970')) {
+          delete cookies[name];
+        } else {
+          cookies[name] = value;
+        }
+        
+        setMockCookies(cookies);
+        notifyListeners();
+      }
+    };
+
+    try {
+      Object.defineProperty(document, 'cookie', cookieDescriptor);
+    } catch (e) {
+      try {
+        Object.defineProperty(Document.prototype, 'cookie', cookieDescriptor);
+      } catch (err) {
+        console.warn("Failed to shim document.cookie:", err);
+      }
+    }
+  }
+
   const HTTP_ONLY_KEY = 'canvas_http_only_cookies';
 
   function getHttpOnlyCookies() {
