@@ -1,4 +1,4 @@
-﻿// Custom Cookie Manager for Session Hijacking Lab
+// Custom Cookie Manager for Session Hijacking Lab
 // This wrapper manages document.cookie and supports a mock HttpOnly jar for educational simulation.
 
 (function() {
@@ -126,4 +126,17 @@
       return this.get(name);
     }
   };
+
+  // Background interval to detect manual F12 modifications to document.cookie or localStorage HttpOnly cookies
+  let lastCookieString = document.cookie;
+  let lastHttpOnlyString = localStorage.getItem(HTTP_ONLY_KEY);
+  setInterval(() => {
+    const currentCookie = document.cookie;
+    const currentHttpOnly = localStorage.getItem(HTTP_ONLY_KEY);
+    if (currentCookie !== lastCookieString || currentHttpOnly !== lastHttpOnlyString) {
+      lastCookieString = currentCookie;
+      lastHttpOnlyString = currentHttpOnly;
+      notifyListeners();
+    }
+  }, 500);
 })();
