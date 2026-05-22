@@ -242,6 +242,7 @@
 
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
     window.logTransaction('sql', `INSERT INTO users (username, password_hash, name, role, email, avatar) VALUES ('${lowerUsername}', '${passwordHash}', '${name}', '${role}', '${email}', '${avatar}');`);
+    window.dispatchEvent(new Event('db_changed'));
     return { success: true };
   };
 
@@ -284,6 +285,7 @@
       path: '/'
     });
 
+    window.dispatchEvent(new Event('db_changed'));
     return { success: true, session: newSession };
   };
 
@@ -299,6 +301,7 @@
     }
     
     window.cookieManager.delete('canvas_session_id');
+    window.dispatchEvent(new Event('db_changed'));
   };
 
   window.getSessions = function() {
@@ -371,6 +374,7 @@
         path: '/'
       });
 
+      window.dispatchEvent(new Event('db_changed'));
       return { user, session: newSession, logs: [`Session rotated from ${sessionId.substring(0, 10)}... to ${newSessionId.substring(0, 10)}...`] };
     }
 

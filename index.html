@@ -65,6 +65,7 @@
       resetDB,
       getSecurityProtections,
       setSecurityProtections,
+      getUsers,
       registerUser,
       loginUser,
       logoutUser,
@@ -327,7 +328,7 @@
     };
 
     // --- LOGIN PORTAL VIEW ---
-    function Login({ onLoginSuccess }) {
+    function Login({ onLoginSuccess, isHudOpen, setIsHudOpen }) {
       const [isRegister, setIsRegister] = useState(false);
       const [isRedirecting, setIsRedirecting] = useState(false);
       
@@ -424,10 +425,24 @@
       };
 
       return (
-        <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
+        <div className={`min-h-screen bg-slate-900 flex flex-col justify-center items-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans ${isHudOpen ? 'lg:pr-[400px]' : ''} transition-all duration-300`}>
           <div className="absolute top-[-20%] left-[-20%] w-[60%] h-[60%] rounded-full bg-blue-500/10 blur-[120px] pointer-events-none"></div>
           <div className="absolute bottom-[-20%] right-[-20%] w-[60%] h-[60%] rounded-full bg-violet-600/10 blur-[120px] pointer-events-none"></div>
           
+          {/* Floating HUD Drawer Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsHudOpen(!isHudOpen)}
+            className={`fixed top-4 right-4 flex items-center gap-2 py-2 px-4 rounded-xl border text-xs font-semibold tracking-wide transition-all cursor-pointer z-40 ${
+              isHudOpen 
+                ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-600/10' 
+                : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+            }`}
+          >
+            <Icon name="shieldalert" className="w-4 h-4" />
+            <span>Lab Console {isHudOpen ? 'Open' : 'Closed'}</span>
+          </button>
+
           <div className="max-w-md w-full space-y-8 z-10">
             <div className="text-center">
               <div className="inline-flex items-center justify-center mb-4">
@@ -652,7 +667,7 @@
     }
 
     // --- MAIN PORTAL VIEW ---
-    function Home({ currentUser, currentSession, onLogoutSuccess }) {
+    function Home({ currentUser, currentSession, onLogoutSuccess, isHudOpen, setIsHudOpen }) {
       const [activeTab, setActiveTab] = useState('dashboard');
       
       const [selectedCourse, setSelectedCourse] = useState(null);
@@ -665,10 +680,6 @@
       const [courses, setCourses] = useState([]);
       const [messages, setMessages] = useState([]);
       const [calendarEvents, setCalendarEvents] = useState([]);
-      const [serverSessions, setServerSessions] = useState({});
-      const [allCookies, setAllCookies] = useState([]);
-      const [logs, setLogs] = useState([]);
-      const [security, setSecurity] = useState({ httpOnly: false, sessionBinding: false, tokenRotation: false });
 
       const [isNewMsgOpen, setIsNewMsgOpen] = useState(false);
       const [msgReceiver, setMsgReceiver] = useState('');
@@ -684,43 +695,18 @@
       const [isNewEventOpen, setIsNewEventOpen] = useState(false);
       const [newEventTitle, setNewEventTitle] = useState('');
       const [newEventDate, setNewEventDate] = useState('');
-
-      const [isHudOpen, setIsHudOpen] = useState(true);
-      const [hudTab, setHudTab] = useState('cookies');
-      const [cookieInputName, setCookieInputName] = useState('canvas_session_id');
-      const [cookieInputValue, setCookieInputValue] = useState('');
-      const [copiedId, setCopiedId] = useState(null);
       
       const [fileErrorMsg, setFileErrorMsg] = useState(null);
       const [showExamAnswers, setShowExamAnswers] = useState(false);
 
-      const logEndRef = useRef(null);
-
       useEffect(() => {
         setCourses(getCourses());
-        setServerSessions(getSessions());
-        setAllCookies(cookieManager.getAllForHUD());
-        setSecurity(getSecurityProtections());
-        setLogs(getLogs());
-
-        const handleLogsAdded = () => setLogs(getLogs());
-        const handleLogsCleared = () => setLogs([]);
-        const handleCookiesChanged = () => setAllCookies(cookieManager.getAllForHUD());
-        const handleSecurityChange = () => setSecurity(getSecurityProtections());
-
-        window.addEventListener('db_log_added', handleLogsAdded);
-        window.addEventListener('db_logs_cleared', handleLogsCleared);
-        window.addEventListener('cookies_changed', handleCookiesChanged);
-        window.addEventListener('security_changed', handleSecurityChange);
-
-        const unsubscribeCookies = subscribeToCookies(handleCookiesChanged);
-
+        const handleDbChanged = () => {
+          setCourses(getCourses());
+        };
+        window.addEventListener('db_changed', handleDbChanged);
         return () => {
-          window.removeEventListener('db_log_added', handleLogsAdded);
-          window.removeEventListener('db_logs_cleared', handleLogsCleared);
-          window.removeEventListener('cookies_changed', handleCookiesChanged);
-          window.removeEventListener('security_changed', handleSecurityChange);
-          unsubscribeCookies();
+          window.removeEventListener('db_changed', handleDbChanged);
         };
       }, []);
 
@@ -731,37 +717,11 @@
         }
       }, [currentUser]);
 
-      useEffect(() => {
-        if (hudTab === 'logs' && logEndRef.current) {
-          logEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, [logs, hudTab]);
-
       const handleLogout = () => {
         if (currentSession) {
           logoutUser(currentSession.id);
         }
         onLogoutSuccess();
-      };
-
-      const handleInjectCookie = () => {
-        if (!cookieInputName || !cookieInputValue) return;
-        
-        cookieManager.set(cookieInputName, cookieInputValue, {
-          maxAge: 86400,
-          httpOnly: security.httpOnly,
-          path: '/'
-        });
-        
-        logTransaction('cookie', `Attacker injected session cookie: ${cookieInputName}=${cookieInputValue.substring(0, 15)}...`);
-        window.location.reload();
-      };
-
-      const handleCopySessionToken = (token) => {
-        navigator.clipboard.writeText(token);
-        setCopiedId(token);
-        setTimeout(() => setCopiedId(null), 2000);
-        logTransaction('cookie', `Attacker copied session token: ${token.substring(0, 10)}...`);
       };
 
       const handleSubmitAssignment = (e) => {
@@ -785,7 +745,6 @@
         if (selectedAssignment) {
           setActiveSubmissions(getSubmissions(selectedAssignment.id));
         }
-        setServerSessions(getSessions());
       };
 
       const handleSendMessage = (e) => {
@@ -1538,364 +1497,6 @@
             </div>
           </main>
 
-          {/* 3. Floating HUD / Lab Console Drawer */}
-          <aside className={`fixed right-0 top-0 bottom-0 w-[400px] bg-slate-900 border-l border-slate-800 flex flex-col transition-transform duration-300 z-30 shadow-2xl h-full ${
-            isHudOpen ? 'translate-x-0' : 'translate-x-full'
-          }`}>
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-955">
-              <div className="flex items-center gap-2">
-                <Icon name="terminal" className="w-5 h-5 text-blue-400" />
-                <h3 className="font-extrabold text-sm tracking-wide text-white uppercase">Lab Console</h3>
-              </div>
-              <button 
-                onClick={() => setIsHudOpen(false)}
-                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
-              >
-                <Icon name="x" className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-4 border-b border-slate-800 text-center">
-              {[
-                { id: 'cookies', label: 'Cookies', icon: 'cookie' },
-                { id: 'sessions', label: 'Sessions', icon: 'database' },
-                { id: 'logs', label: 'Logs', icon: 'terminal' },
-                { id: 'defenses', label: 'Defenses', icon: 'shieldalert' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setHudTab(tab.id)}
-                  className={`py-3 flex flex-col items-center gap-1 text-[10px] font-bold tracking-wide transition-all border-b-2 cursor-pointer ${
-                    hudTab === tab.id 
-                      ? 'border-blue-500 text-blue-400 bg-blue-600/5' 
-                      : 'border-transparent text-slate-400 hover:text-slate-300 hover:bg-slate-800/20'
-                  }`}
-                >
-                  <Icon name={tab.icon} className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              
-              {hudTab === 'cookies' && (
-                <div className="space-y-5">
-                  <div className="bg-slate-955 border border-slate-850 p-3.5 rounded-xl text-xs text-slate-400 leading-relaxed">
-                    <span className="font-bold text-slate-200 block mb-1">How it works:</span>
-                    Browser cookies store session identifiers. Under normal circumstances, any JavaScript on the page can inspect <code>document.cookie</code>.
-                  </div>
-
-                  <div className="space-y-2">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Browser Cookies (document.cookie)</span>
-                    {allCookies.length === 0 ? (
-                      <p className="text-xs text-slate-500 italic p-3 text-center border border-slate-850 rounded-xl bg-slate-950/20">No cookies stored.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {allCookies.map((cookie, idx) => (
-                          <div 
-                            key={idx}
-                            className={`p-3 border rounded-xl flex items-center justify-between transition-all bg-slate-950/30 ${
-                              cookie.isHttpOnly 
-                                ? 'border-amber-500/20 hover:border-amber-500/35' 
-                                : 'border-slate-800 hover:border-slate-700'
-                            }`}
-                          >
-                            <div className="flex-1 min-w-0 pr-2">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <span className={`font-bold text-xs truncate block ${cookie.isHttpOnly ? 'text-amber-400' : 'text-blue-400'}`}>
-                                  {cookie.name}
-                                </span>
-                                {cookie.isHttpOnly ? (
-                                  <span className="text-[8px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1 py-0.2 rounded font-mono font-bold">HttpOnly</span>
-                                ) : (
-                                  <span className="text-[8px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1 py-0.2 rounded font-mono font-bold">Standard</span>
-                                )}
-                              </div>
-                              <span className="font-mono text-[10px] text-slate-500 break-all select-all block">{cookie.value}</span>
-                            </div>
-                            {!cookie.isHttpOnly && (
-                              <button
-                                onClick={() => {
-                                  cookieManager.delete(cookie.name);
-                                  logTransaction('cookie', `User deleted cookie '${cookie.name}'`);
-                                  window.location.reload();
-                                }}
-                                className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
-                                title="Delete Cookie"
-                              >
-                                <Icon name="x" className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="bg-slate-955 border border-slate-800 rounded-xl p-4 space-y-3.5">
-                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">Cookie Injector</span>
-                    
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase">Cookie Name</label>
-                      <input
-                        type="text"
-                        value={cookieInputName}
-                        onChange={(e) => setCookieInputName(e.target.value)}
-                        placeholder="Cookie Name"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-semibold text-slate-500 uppercase">Cookie Value (Session Token)</label>
-                      <input
-                        type="text"
-                        value={cookieInputValue}
-                        onChange={(e) => setCookieInputValue(e.target.value)}
-                        placeholder="Enter session token value"
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 font-mono"
-                      />
-                    </div>
-
-                    <button
-                      onClick={handleInjectCookie}
-                      className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-xl text-xs font-semibold tracking-wide transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-blue-600/15"
-                    >
-                      <Icon name="cookie" className="w-3.5 h-3.5" />
-                      <span>Inject & Refresh</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {hudTab === 'sessions' && (
-                <div className="space-y-4">
-                  <div className="bg-slate-955 border border-slate-850 p-3.5 rounded-xl text-xs text-slate-400 leading-relaxed">
-                    <span className="font-bold text-slate-200 block mb-1">Educational Scenario:</span>
-                    Copy <strong>Alice's</strong> session token from the list below, paste/inject it using the <em>Cookie Injector</em>, then reload. You will hijack Alice's session!
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Stolen Sessions Database</span>
-                      <button
-                        onClick={() => {
-                          if (confirm("Are you sure you want to reset the database and log out?")) {
-                            resetDB();
-                            window.location.reload();
-                          }
-                        }}
-                        className="text-[10px] font-semibold text-red-400 hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Icon name="refreshcw" className="w-3 h-3" />
-                        <span>Reset Lab DB</span>
-                      </button>
-                    </div>
-
-                    {Object.values(serverSessions).map((sess) => {
-                      const isUserActive = sess.id === currentSession?.id;
-                      const isCopied = copiedId === sess.id;
-                      
-                      return (
-                        <div 
-                          key={sess.id}
-                          className={`p-3.5 border rounded-xl space-y-2 bg-slate-950/30 transition-all ${
-                            isUserActive 
-                              ? 'border-blue-500/40 bg-blue-950/5' 
-                              : 'border-slate-800'
-                          }`}
-                        >
-                          <div className="flex justify-between items-start">
-                            <div>
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-xs text-slate-200 uppercase">{sess.username}</span>
-                                {sess.username === 'alice' && (
-                                  <span className="text-[8px] bg-amber-500/15 border border-amber-500/25 text-amber-400 px-1 py-0.2 rounded font-bold uppercase">Professor</span>
-                                )}
-                                {isUserActive && (
-                                  <span className="text-[8px] bg-blue-500/15 border border-blue-500/25 text-blue-400 px-1 py-0.2 rounded font-bold uppercase">Active You</span>
-                                )}
-                              </div>
-                              <span className="text-[9px] text-slate-500">Created: {new Date(sess.createdAt).toLocaleTimeString()}</span>
-                            </div>
-                            
-                            <button
-                              onClick={() => {
-                                handleCopySessionToken(sess.id);
-                                setCookieInputValue(sess.id);
-                              }}
-                              className={`p-1.5 rounded-lg border text-xs font-medium flex items-center gap-1 transition-all cursor-pointer ${
-                                isCopied 
-                                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                              }`}
-                              title="Copy token & fill injector"
-                            >
-                              <Icon name={isCopied ? 'check' : 'copy'} className="w-3.5 h-3.5" />
-                              <span>{isCopied ? 'Copied' : 'Copy'}</span>
-                            </button>
-                          </div>
-
-                          <div className="space-y-1 bg-slate-950/40 border border-slate-900 p-2 rounded-lg font-mono text-[9px] text-slate-500 leading-tight">
-                            <div className="truncate"><span className="text-slate-400 font-bold">Token:</span> {sess.id}</div>
-                            <div className="truncate"><span className="text-slate-400 font-bold">IP:</span> {sess.ipAddress}</div>
-                            <div className="truncate"><span className="text-slate-400 font-bold">Agent:</span> {sess.userAgent}</div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {hudTab === 'logs' && (
-                <div className="space-y-3 flex flex-col h-[400px]">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Live SQL & HTTP Transactions</span>
-                    <button
-                      onClick={() => clearLogs()}
-                      className="text-[10px] font-semibold text-slate-400 hover:text-slate-200 hover:underline cursor-pointer"
-                    >
-                      Clear Feed
-                    </button>
-                  </div>
-
-                  <div className="flex-1 bg-slate-955 border border-slate-800 rounded-xl p-3.5 font-mono text-[10px] overflow-y-auto space-y-2.5 shadow-inner">
-                    {logs.length === 0 ? (
-                      <p className="text-slate-600 italic text-center py-10">Listening for database transactions...</p>
-                    ) : (
-                      logs.map((log) => {
-                        let color = 'text-blue-400';
-                        if (log.type === 'sql') color = 'text-emerald-400';
-                        if (log.type === 'cookie') color = 'text-amber-400';
-                        
-                        return (
-                          <div key={log.id} className="leading-relaxed border-b border-slate-900/50 pb-1.5">
-                            <div className="flex gap-2 text-slate-650 font-bold text-[8px] mb-0.5">
-                              <span>[{log.timestamp}]</span>
-                              <span className="uppercase">{log.type}</span>
-                            </div>
-                            <p className={`${color} whitespace-pre-wrap break-words`}>{log.message}</p>
-                          </div>
-                        );
-                      })
-                    )}
-                    <div ref={logEndRef} />
-                  </div>
-                </div>
-              )}
-
-              {hudTab === 'defenses' && (
-                <div className="space-y-4">
-                  <div className="bg-slate-955 border border-slate-850 p-3.5 rounded-xl text-xs text-slate-400 leading-relaxed">
-                    <span className="font-bold text-slate-200 block mb-1">Defensive Settings:</span>
-                    Secure the mock application by toggling the defensive features below. Observe how they prevent hijacking in the cookies/logs tab.
-                  </div>
-
-                  <div className="space-y-4.5">
-                    <div className="p-3.5 bg-slate-950/30 border border-slate-800 rounded-xl space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-bold text-xs text-slate-200 block">HttpOnly Flag</span>
-                          <span className="text-[10px] text-slate-500 font-medium">Hides session cookie from client scripts.</span>
-                        </div>
-                        <button
-                          onClick={() => setSecurityProtections({ ...security, httpOnly: !security.httpOnly })}
-                          className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            security.httpOnly ? 'bg-blue-600' : 'bg-slate-800'
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            security.httpOnly ? 'translate-x-5' : 'translate-x-0'
-                          }`} />
-                        </button>
-                      </div>
-                      <div className="border-t border-slate-900/60 pt-2 flex items-center gap-1.5">
-                        {security.httpOnly ? (
-                          <React.Fragment>
-                            <Icon name="lock" className="w-3 h-3 text-emerald-400" />
-                            <span className="text-[9px] font-bold text-emerald-400 font-mono uppercase">JS Access Blocked (HttpOnly ON)</span>
-                          </React.Fragment>
-                        ) : (
-                          <React.Fragment>
-                            <Icon name="unlock" className="w-3 h-3 text-red-400" />
-                            <span className="text-[9px] font-bold text-red-400 font-mono uppercase">JS Access Exposed (document.cookie is readable)</span>
-                          </React.Fragment>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 bg-slate-950/30 border border-slate-800 rounded-xl space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-bold text-xs text-slate-200 block">Session Device Binding</span>
-                          <span className="text-[10px] text-slate-500 font-medium">Binds sessions to User-Agent browser fingerprint.</span>
-                        </div>
-                        <button
-                          onClick={() => setSecurityProtections({ ...security, sessionBinding: !security.sessionBinding })}
-                          className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            security.sessionBinding ? 'bg-blue-600' : 'bg-slate-800'
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            security.sessionBinding ? 'translate-x-5' : 'translate-x-0'
-                          }`} />
-                        </button>
-                      </div>
-                      <div className="border-t border-slate-900/60 pt-2 flex items-center gap-1.5">
-                        {security.sessionBinding ? (
-                          <React.Fragment>
-                            <Icon name="check" className="w-3 h-3 text-emerald-400" />
-                            <span className="text-[9px] font-bold text-emerald-400 font-mono uppercase">Fingerprint Bind Bound</span>
-                          </React.Fragment>
-                        ) : (
-                          <React.Fragment>
-                            <Icon name="alerttriangle" className="w-3 h-3 text-red-400" />
-                            <span className="text-[9px] font-bold text-red-400 font-mono uppercase">Vulnerable: Tokens reusable from any User-Agent</span>
-                          </React.Fragment>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="p-3.5 bg-slate-950/30 border border-slate-800 rounded-xl space-y-2">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-bold text-xs text-slate-200 block">Session Token Rotation</span>
-                          <span className="text-[10px] text-slate-500 font-medium">Rotates the token value on every network transaction.</span>
-                        </div>
-                        <button
-                          onClick={() => setSecurityProtections({ ...security, tokenRotation: !security.tokenRotation })}
-                          className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                            security.tokenRotation ? 'bg-blue-600' : 'bg-slate-800'
-                          }`}
-                        >
-                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                            security.tokenRotation ? 'translate-x-5' : 'translate-x-0'
-                          }`} />
-                        </button>
-                      </div>
-                      <div className="border-t border-slate-900/60 pt-2 flex items-center gap-1.5">
-                        {security.tokenRotation ? (
-                          <React.Fragment>
-                            <Icon name="check" className="w-3 h-3 text-emerald-400" />
-                            <span className="text-[9px] font-bold text-emerald-400 font-mono uppercase">Rotates token on API request</span>
-                          </React.Fragment>
-                        ) : (
-                          <React.Fragment>
-                            <Icon name="alerttriangle" className="w-3 h-3 text-red-400" />
-                            <span className="text-[9px] font-bold text-red-400 font-mono uppercase">Static tokens (vulnerable to replay)</span>
-                          </React.Fragment>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-            </div>
-          </aside>
-
           {/* 4. MODALS & DIALOGS */}
           
           {/* A. Compose Message Modal */}
@@ -2177,6 +1778,20 @@
       const [loading, setLoading] = useState(true);
       const isCheckingAuthRef = useRef(false);
 
+      const [isHudOpen, setIsHudOpen] = useState(true);
+      const [hudTab, setHudTab] = useState('cookies');
+      const [cookieInputName, setCookieInputName] = useState('canvas_session_id');
+      const [cookieInputValue, setCookieInputValue] = useState('');
+      const [copiedId, setCopiedId] = useState(null);
+      
+      const [allCookies, setAllCookies] = useState([]);
+      const [serverSessions, setServerSessions] = useState({});
+      const [registeredUsers, setRegisteredUsers] = useState([]);
+      const [logs, setLogs] = useState([]);
+      const [security, setSecurity] = useState({ httpOnly: false, sessionBinding: false, tokenRotation: false });
+
+      const logEndRef = useRef(null);
+
       const checkAuth = () => {
         if (isCheckingAuthRef.current) return;
         isCheckingAuthRef.current = true;
@@ -2195,18 +1810,74 @@
         }
       };
 
+      const refreshHudData = () => {
+        setServerSessions(getSessions());
+        setAllCookies(cookieManager.getAllForHUD());
+        setSecurity(getSecurityProtections());
+        setLogs(getLogs());
+        setRegisteredUsers(Object.values(getUsers() || {}));
+      };
+
+      const handleInjectCookie = () => {
+        if (!cookieInputName || !cookieInputValue) return;
+        
+        cookieManager.set(cookieInputName, cookieInputValue, {
+          maxAge: 86400,
+          httpOnly: security.httpOnly,
+          path: '/'
+        });
+        
+        logTransaction('cookie', `Attacker injected session cookie: ${cookieInputName}=${cookieInputValue.substring(0, 15)}...`);
+        window.location.reload();
+      };
+
+      const handleCopySessionToken = (token) => {
+        navigator.clipboard.writeText(token);
+        setCopiedId(token);
+        setTimeout(() => setCopiedId(null), 2000);
+        logTransaction('cookie', `Attacker copied session token: ${token.substring(0, 10)}...`);
+      };
+
       useEffect(() => {
         initializeDB();
         checkAuth();
+        refreshHudData();
+
+        const handleLogsAdded = () => setLogs(getLogs());
+        const handleLogsCleared = () => setLogs([]);
+        const handleCookiesChanged = () => setAllCookies(cookieManager.getAllForHUD());
+        const handleSecurityChange = () => setSecurity(getSecurityProtections());
+        const handleDbChanged = () => {
+          refreshHudData();
+          checkAuth();
+        };
+
+        window.addEventListener('db_log_added', handleLogsAdded);
+        window.addEventListener('db_logs_cleared', handleLogsCleared);
+        window.addEventListener('cookies_changed', handleCookiesChanged);
+        window.addEventListener('security_changed', handleSecurityChange);
+        window.addEventListener('db_changed', handleDbChanged);
 
         const unsubscribeCookies = subscribeToCookies(() => {
           checkAuth();
+          setAllCookies(cookieManager.getAllForHUD());
         });
 
         return () => {
+          window.removeEventListener('db_log_added', handleLogsAdded);
+          window.removeEventListener('db_logs_cleared', handleLogsCleared);
+          window.removeEventListener('cookies_changed', handleCookiesChanged);
+          window.removeEventListener('security_changed', handleSecurityChange);
+          window.removeEventListener('db_changed', handleDbChanged);
           unsubscribeCookies();
         };
       }, []);
+
+      useEffect(() => {
+        if (hudTab === 'logs' && logEndRef.current) {
+          logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, [logs, hudTab]);
 
       if (loading) {
         return (
@@ -2219,16 +1890,422 @@
         );
       }
 
-      if (!currentUser) {
-        return <Login onLoginSuccess={checkAuth} />;
-      }
-
       return (
-        <Home 
-          currentUser={currentUser} 
-          currentSession={currentSession} 
-          onLogoutSuccess={checkAuth} 
-        />
+        <div className="h-full w-full relative">
+          {!currentUser ? (
+            <Login 
+              onLoginSuccess={checkAuth} 
+              isHudOpen={isHudOpen} 
+              setIsHudOpen={setIsHudOpen} 
+            />
+          ) : (
+            <Home 
+              currentUser={currentUser} 
+              currentSession={currentSession} 
+              onLogoutSuccess={checkAuth} 
+              isHudOpen={isHudOpen}
+              setIsHudOpen={setIsHudOpen}
+            />
+          )}
+
+          {/* Floating HUD / Lab Console Drawer */}
+          <aside className={`fixed right-0 top-0 bottom-0 w-[400px] bg-slate-900 border-l border-slate-800 flex flex-col transition-transform duration-300 z-30 shadow-2xl h-full ${
+            isHudOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}>
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-955">
+              <div className="flex items-center gap-2">
+                <Icon name="terminal" className="w-5 h-5 text-blue-400" />
+                <h3 className="font-extrabold text-sm tracking-wide text-white uppercase">Lab Console</h3>
+              </div>
+              <button 
+                onClick={() => setIsHudOpen(false)}
+                className="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+              >
+                <Icon name="x" className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 border-b border-slate-800 text-center">
+              {[
+                { id: 'cookies', label: 'Cookies', icon: 'cookie' },
+                { id: 'sessions', label: 'Sessions', icon: 'database' },
+                { id: 'logs', label: 'Logs', icon: 'terminal' },
+                { id: 'defenses', label: 'Defenses', icon: 'shieldalert' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setHudTab(tab.id)}
+                  className={`py-3 flex flex-col items-center gap-1 text-[10px] font-bold tracking-wide transition-all border-b-2 cursor-pointer ${
+                    hudTab === tab.id 
+                      ? 'border-blue-500 text-blue-400 bg-blue-600/5' 
+                      : 'border-transparent text-slate-400 hover:text-slate-300 hover:bg-slate-800/20'
+                  }`}
+                >
+                  <Icon name={tab.icon} className="w-4 h-4" />
+                  <span>{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              
+              {hudTab === 'cookies' && (
+                <div className="space-y-5">
+                  <div className="bg-slate-955 border border-slate-850 p-3.5 rounded-xl text-xs text-slate-400 leading-relaxed">
+                    <span className="font-bold text-slate-200 block mb-1">How it works:</span>
+                    Browser cookies store session identifiers. Under normal circumstances, any JavaScript on the page can inspect <code>document.cookie</code>.
+                  </div>
+
+                  <div className="space-y-2">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Browser Cookies (document.cookie)</span>
+                    {allCookies.length === 0 ? (
+                      <p className="text-xs text-slate-500 italic p-3 text-center border border-slate-850 rounded-xl bg-slate-950/20">No cookies stored.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {allCookies.map((cookie, idx) => (
+                          <div 
+                            key={idx}
+                            className={`p-3 border rounded-xl flex items-center justify-between transition-all bg-slate-950/30 ${
+                              cookie.isHttpOnly 
+                                ? 'border-amber-500/20 hover:border-amber-500/35' 
+                                : 'border-slate-800 hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0 pr-2">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <span className={`font-bold text-xs truncate block ${cookie.isHttpOnly ? 'text-amber-400' : 'text-blue-400'}`}>
+                                  {cookie.name}
+                                </span>
+                                {cookie.isHttpOnly ? (
+                                  <span className="text-[8px] bg-amber-500/10 border border-amber-500/20 text-amber-400 px-1 py-0.2 rounded font-mono font-bold">HttpOnly</span>
+                                ) : (
+                                  <span className="text-[8px] bg-blue-500/10 border border-blue-500/20 text-blue-400 px-1 py-0.2 rounded font-mono font-bold">Standard</span>
+                                )}
+                              </div>
+                              <span className="font-mono text-[10px] text-slate-500 break-all select-all block">{cookie.value}</span>
+                            </div>
+                            {!cookie.isHttpOnly && (
+                              <button
+                                onClick={() => {
+                                  cookieManager.delete(cookie.name);
+                                  logTransaction('cookie', `User deleted cookie '${cookie.name}'`);
+                                  window.location.reload();
+                                }}
+                                className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors cursor-pointer"
+                                title="Delete Cookie"
+                              >
+                                <Icon name="x" className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-955 border border-slate-800 rounded-xl p-4 space-y-3.5">
+                    <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">Cookie Injector</span>
+                    
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase">Cookie Name</label>
+                      <input
+                        type="text"
+                        value={cookieInputName}
+                        onChange={(e) => setCookieInputName(e.target.value)}
+                        placeholder="Cookie Name"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-semibold text-slate-500 uppercase">Cookie Value (Session Token)</label>
+                      <input
+                        type="text"
+                        value={cookieInputValue}
+                        onChange={(e) => setCookieInputValue(e.target.value)}
+                        placeholder="Enter session token value"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-300 font-mono"
+                      />
+                    </div>
+
+                    <button
+                      onClick={handleInjectCookie}
+                      className="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded-xl text-xs font-semibold tracking-wide transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-blue-600/15"
+                    >
+                      <Icon name="cookie" className="w-3.5 h-3.5" />
+                      <span>Inject & Refresh</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {hudTab === 'sessions' && (
+                <div className="space-y-6">
+                  {/* Simulated Users Section */}
+                  <div className="space-y-3">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">Registered Users (users table)</span>
+                    <div className="grid grid-cols-1 gap-2">
+                      {registeredUsers.map((user) => (
+                        <div key={user.username} className="p-3 border border-slate-800 bg-slate-950/30 rounded-xl flex items-center justify-between">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <img src={user.avatar} className="w-8 h-8 rounded-full border border-slate-700 object-cover shrink-0" onError={(e) => { e.target.src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"; }} />
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-xs text-slate-200 truncate">{user.name}</span>
+                                <span className={`text-[8px] px-1 py-0.2 rounded font-bold uppercase ${user.role === 'teacher' ? 'bg-amber-500/15 border border-amber-500/25 text-amber-400' : 'bg-blue-500/15 border border-blue-500/25 text-blue-400'}`}>{user.role}</span>
+                              </div>
+                              <span className="text-[9px] text-slate-500 font-mono block">@{user.username} &bull; {user.email}</span>
+                            </div>
+                          </div>
+                          <div className="text-[9px] bg-slate-955 border border-slate-850 py-1 px-2 rounded-lg font-mono text-slate-500">
+                            hash: <span className="text-slate-400">{user.passwordHash}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <hr className="border-slate-800/60" />
+
+                  {/* Sessions Section */}
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Active Server Sessions (sessions table)</span>
+                      <button
+                        onClick={() => {
+                          if (confirm("Are you sure you want to reset the database? This will clear all custom users, sessions, and reload the page.")) {
+                            resetDB();
+                          }
+                        }}
+                        className="text-[10px] font-semibold text-red-400 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Icon name="refreshcw" className="w-3 h-3" />
+                        <span>Reset Lab DB</span>
+                      </button>
+                    </div>
+
+                    {Object.values(serverSessions).length === 0 ? (
+                      <p className="text-xs text-slate-500 italic p-3 text-center border border-slate-850 rounded-xl bg-slate-950/20">No active sessions.</p>
+                    ) : (
+                      Object.values(serverSessions).map((sess) => {
+                        const isUserActive = sess.id === currentSession?.id;
+                        const isCopied = copiedId === sess.id;
+                        
+                        return (
+                          <div 
+                            key={sess.id}
+                            className={`p-3.5 border rounded-xl space-y-2 bg-slate-950/30 transition-all ${
+                              isUserActive 
+                                ? 'border-blue-500/40 bg-blue-950/5' 
+                                : 'border-slate-800'
+                            }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold text-xs text-slate-200 uppercase">{sess.username}</span>
+                                  {sess.username === 'alice' && (
+                                    <span className="text-[8px] bg-amber-500/15 border border-amber-500/25 text-amber-400 px-1 py-0.2 rounded font-bold uppercase">Professor</span>
+                                  )}
+                                  {isUserActive && (
+                                    <span className="text-[8px] bg-blue-500/15 border border-blue-500/25 text-blue-400 px-1 py-0.2 rounded font-bold uppercase">Active You</span>
+                                  )}
+                                </div>
+                                <span className="text-[9px] text-slate-500">Created: {new Date(sess.createdAt).toLocaleTimeString()}</span>
+                              </div>
+                              
+                              <button
+                                onClick={() => {
+                                  handleCopySessionToken(sess.id);
+                                  setCookieInputValue(sess.id);
+                                }}
+                                className={`p-1.5 rounded-lg border text-xs font-medium flex items-center gap-1 transition-all cursor-pointer ${
+                                  isCopied 
+                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                                    : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                                }`}
+                                title="Copy token & fill injector"
+                              >
+                                <Icon name={isCopied ? 'check' : 'copy'} className="w-3.5 h-3.5" />
+                                <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                              </button>
+                            </div>
+
+                            <div className="space-y-1 bg-slate-950/40 border border-slate-900 p-2 rounded-lg font-mono text-[9px] text-slate-500 leading-tight">
+                              <div className="truncate"><span className="text-slate-400 font-bold">Token:</span> {sess.id}</div>
+                              <div className="truncate"><span className="text-slate-400 font-bold">IP:</span> {sess.ipAddress}</div>
+                              <div className="truncate"><span className="text-slate-400 font-bold">Agent:</span> {sess.userAgent}</div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {hudTab === 'logs' && (
+                <div className="space-y-3 flex flex-col h-[400px]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Live SQL & HTTP Transactions</span>
+                    <button
+                      onClick={() => {
+                        clearLogs();
+                        setLogs([]);
+                      }}
+                      className="text-[10px] font-semibold text-slate-400 hover:text-slate-200 hover:underline cursor-pointer"
+                    >
+                      Clear Feed
+                    </button>
+                  </div>
+
+                  <div className="flex-1 bg-slate-955 border border-slate-800 rounded-xl p-3.5 font-mono text-[10px] overflow-y-auto space-y-2.5 shadow-inner">
+                    {logs.length === 0 ? (
+                      <p className="text-slate-600 italic text-center py-10">Listening for database transactions...</p>
+                    ) : (
+                      logs.map((log) => {
+                        let color = 'text-blue-400';
+                        if (log.type === 'sql') color = 'text-emerald-400';
+                        if (log.type === 'cookie') color = 'text-amber-400';
+                        
+                        return (
+                          <div key={log.id} className="leading-relaxed border-b border-slate-900/50 pb-1.5">
+                            <div className="flex gap-2 text-slate-650 font-bold text-[8px] mb-0.5">
+                              <span>[{log.timestamp}]</span>
+                              <span className="uppercase">{log.type}</span>
+                            </div>
+                            <p className={`${color} whitespace-pre-wrap break-words`}>{log.message}</p>
+                          </div>
+                        );
+                      })
+                    )}
+                    <div ref={logEndRef} />
+                  </div>
+                </div>
+              )}
+
+              {hudTab === 'defenses' && (
+                <div className="space-y-4">
+                  <div className="bg-slate-955 border border-slate-850 p-3.5 rounded-xl text-xs text-slate-400 leading-relaxed">
+                    <span className="font-bold text-slate-200 block mb-1">Defensive Settings:</span>
+                    Secure the mock application by toggling the defensive features below. Observe how they prevent hijacking in the cookies/logs tab.
+                  </div>
+
+                  <div className="space-y-4.5">
+                    <div className="p-3.5 bg-slate-955 border border-slate-800 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-bold text-xs text-slate-200 block">HttpOnly Flag</span>
+                          <span className="text-[10px] text-slate-500 font-medium">Hides session cookie from client scripts.</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const val = !security.httpOnly;
+                            setSecurityProtections({ ...security, httpOnly: val });
+                            setSecurity({ ...security, httpOnly: val });
+                          }}
+                          className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            security.httpOnly ? 'bg-blue-600' : 'bg-slate-800'
+                          }`}
+                        >
+                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            security.httpOnly ? 'translate-x-5' : 'translate-x-0'
+                          }`} />
+                        </button>
+                      </div>
+                      <div className="border-t border-slate-900/65 pt-2 flex items-center gap-1.5">
+                        {security.httpOnly ? (
+                          <React.Fragment>
+                            <Icon name="lock" className="w-3 h-3 text-emerald-400" />
+                            <span className="text-[9px] font-bold text-emerald-400 font-mono uppercase">JS Access Blocked (HttpOnly ON)</span>
+                          </React.Fragment>
+                        ) : (
+                          <React.Fragment>
+                            <Icon name="unlock" className="w-3 h-3 text-red-400" />
+                            <span className="text-[9px] font-bold text-red-400 font-mono uppercase">JS Access Exposed (document.cookie is readable)</span>
+                          </React.Fragment>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-slate-955 border border-slate-800 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-bold text-xs text-slate-200 block">Session Device Binding</span>
+                          <span className="text-[10px] text-slate-500 font-medium">Binds sessions to User-Agent browser fingerprint.</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const val = !security.sessionBinding;
+                            setSecurityProtections({ ...security, sessionBinding: val });
+                            setSecurity({ ...security, sessionBinding: val });
+                          }}
+                          className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            security.sessionBinding ? 'bg-blue-600' : 'bg-slate-800'
+                          }`}
+                        >
+                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            security.sessionBinding ? 'translate-x-5' : 'translate-x-0'
+                          }`} />
+                        </button>
+                      </div>
+                      <div className="border-t border-slate-900/65 pt-2 flex items-center gap-1.5">
+                        {security.sessionBinding ? (
+                          <React.Fragment>
+                            <Icon name="check" className="w-3 h-3 text-emerald-400" />
+                            <span className="text-[9px] font-bold text-emerald-400 font-mono uppercase">Fingerprint Bind Bound</span>
+                          </React.Fragment>
+                        ) : (
+                          <React.Fragment>
+                            <Icon name="alerttriangle" className="w-3 h-3 text-red-400" />
+                            <span className="text-[9px] font-bold text-red-400 font-mono uppercase">Vulnerable: Tokens reusable from any User-Agent</span>
+                          </React.Fragment>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 bg-slate-955 border border-slate-800 rounded-xl space-y-2">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="font-bold text-xs text-slate-200 block">Session Token Rotation</span>
+                          <span className="text-[10px] text-slate-500 font-medium">Rotates the token value on every network transaction.</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const val = !security.tokenRotation;
+                            setSecurityProtections({ ...security, tokenRotation: val });
+                            setSecurity({ ...security, tokenRotation: val });
+                          }}
+                          className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                            security.tokenRotation ? 'bg-blue-600' : 'bg-slate-800'
+                          }`}
+                        >
+                          <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            security.tokenRotation ? 'translate-x-5' : 'translate-x-0'
+                          }`} />
+                        </button>
+                      </div>
+                      <div className="border-t border-slate-900/65 pt-2 flex items-center gap-1.5">
+                        {security.tokenRotation ? (
+                          <React.Fragment>
+                            <Icon name="check" className="w-3 h-3 text-emerald-400" />
+                            <span className="text-[9px] font-bold text-emerald-400 font-mono uppercase">Rotates token on API request</span>
+                          </React.Fragment>
+                        ) : (
+                          <React.Fragment>
+                            <Icon name="alerttriangle" className="w-3 h-3 text-red-400" />
+                            <span className="text-[9px] font-bold text-red-400 font-mono uppercase">Static tokens (vulnerable to replay)</span>
+                          </React.Fragment>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </aside>
+        </div>
       );
     }
 
