@@ -38,8 +38,13 @@ import {
   X, 
   FileLock2, 
   MessageSquare,
-  Lock
+  Lock,
+  Shield,
+  ShieldCheck,
+  ShieldOff
 } from 'lucide-react';
+import { getSecurityProtections, setSecurityProtections } from '../utils/db';
+
 
 export default function Home() {
   const [currentUser, setCurrentUser] = useState<DBUser | null>(null);
@@ -82,6 +87,29 @@ export default function Home() {
   // File locker visual modal
   const [fileErrorMsg, setFileErrorMsg] = useState<string | null>(null);
   const [showExamAnswers, setShowExamAnswers] = useState(false);
+
+  // Security Panel State
+  const [protections, setProtectionsState] = useState(getSecurityProtections());
+  const [showSecurityPanel, setShowSecurityPanel] = useState(false);
+
+  const toggleProtection = (key: keyof typeof protections) => {
+    const next = { ...protections, [key]: !protections[key] };
+    setProtectionsState(next);
+    setSecurityProtections(next);
+
+    // Dynamic simulation: instantly rewrite the active session cookie to update its HttpOnly visibility
+    if (key === 'httpOnly') {
+      const sessionId = cookieManager.getServerCookie('rivancyber_session_id');
+      if (sessionId) {
+        cookieManager.set('rivancyber_session_id', sessionId, {
+          maxAge: 86400,
+          httpOnly: next.httpOnly,
+          path: '/'
+        });
+      }
+    }
+  };
+
   // Authenticate user on load
   const runAuth = () => {
     const auth = authenticateServerRequest();
@@ -301,7 +329,30 @@ export default function Home() {
               Welcome back, <span className="font-semibold text-slate-200">{currentUser?.name}</span> ({currentUser?.role})
             </p>
           </div>
+
+          {/* Security Panel Button */}
+          <button
+            onClick={() => setShowSecurityPanel(!showSecurityPanel)}
+            className={`flex items-center gap-2 border px-4 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer select-none ${
+              (protections.httpOnly || protections.sessionBinding || protections.tokenRotation)
+                ? 'bg-emerald-600/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/20'
+                : 'bg-red-600/10 border-red-500/30 text-red-400 hover:bg-red-600/20'
+            }`}
+          >
+            {(protections.httpOnly || protections.sessionBinding || protections.tokenRotation) ? (
+              <>
+                <ShieldCheck className="w-4 h-4" />
+                <span>🟢 Security: Enabled</span>
+              </>
+            ) : (
+              <>
+                <ShieldOff className="w-4 h-4 animate-pulse" />
+                <span>🔴 Security: Disabled</span>
+              </>
+            )}
+          </button>
         </header>
+
 
         {/* CONTENT CONTAINER SWITCH */}
         <div className="flex-1 min-h-0">
@@ -309,6 +360,142 @@ export default function Home() {
           {/* --- DASHBOARD TAB --- */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
+              {/* Security Panel */}
+              {showSecurityPanel && (
+                <div className="bg-slate-900 border border-slate-800/80 rounded-2xl p-5 shadow-lg space-y-4 animate-slide-down">
+                  <div>
+                    <h4 className="font-bold text-slate-200 text-sm flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-blue-500" />
+                      <span>Security Protections Config</span>
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">Toggle defenses to test how they block session hijacking vulnerabilities.</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {/* HttpOnly Cookies */}
+                    <div className={`p-4 border rounded-xl bg-slate-950/20 transition-all flex flex-col justify-between ${
+                      protections.httpOnly ? 'border-blue-500/30' : 'border-slate-800/60'
+                    }`}>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-bold text-slate-200">HttpOnly Cookies</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                            protections.httpOnly ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500'
+                          }`}>{protections.httpOnly ? 'Active' : 'Inactive'}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Hides the session cookie from client-side JavaScript. Prevents token retrieval via <code className="text-amber-500 font-mono">document.cookie</code>.
+                        </p>
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => toggleProtection('httpOnly')}
+                          className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none cursor-pointer ${
+                            protections.httpOnly ? 'bg-blue-600' : 'bg-slate-800'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 transform ${
+                            protections.httpOnly ? 'translate-x-5' : 'translate-x-0'
+                          }`} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Session Binding */}
+                    <div className={`p-4 border rounded-xl bg-slate-950/20 transition-all flex flex-col justify-between ${
+                      protections.sessionBinding ? 'border-blue-500/30' : 'border-slate-800/60'
+                    }`}>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-bold text-slate-200">Session Binding (User-Agent)</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                            protections.sessionBinding ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500'
+                          }`}>{protections.sessionBinding ? 'Active' : 'Inactive'}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Validates User-Agent fingerprint. A stolen session token imported into a different browser will be rejected as unauthorized.
+                        </p>
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => toggleProtection('sessionBinding')}
+                          className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none cursor-pointer ${
+                            protections.sessionBinding ? 'bg-blue-600' : 'bg-slate-800'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 transform ${
+                            protections.sessionBinding ? 'translate-x-5' : 'translate-x-0'
+                          }`} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Token Rotation */}
+                    <div className={`p-4 border rounded-xl bg-slate-950/20 transition-all flex flex-col justify-between ${
+                      protections.tokenRotation ? 'border-blue-500/30' : 'border-slate-800/60'
+                    }`}>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-xs font-bold text-slate-200">Session Token Rotation</span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
+                            protections.tokenRotation ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-500'
+                          }`}>{protections.tokenRotation ? 'Active' : 'Inactive'}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          Generates and sets a new session token on every valid HTTP request. Stolen tokens are immediately rendered obsolete and invalid.
+                        </p>
+                      </div>
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => toggleProtection('tokenRotation')}
+                          className={`w-10 h-5 rounded-full p-0.5 transition-colors duration-200 focus:outline-none cursor-pointer ${
+                            protections.tokenRotation ? 'bg-blue-600' : 'bg-slate-800'
+                          }`}
+                        >
+                          <div className={`w-4 h-4 rounded-full bg-white transition-transform duration-200 transform ${
+                            protections.tokenRotation ? 'translate-x-5' : 'translate-x-0'
+                          }`} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Instructor-Only Panel */}
+              {currentUser?.role === 'teacher' && (
+                <div className="bg-slate-900 border border-red-950/40 rounded-2xl overflow-hidden shadow-lg border-l-4 border-l-red-600">
+                  <div className="bg-slate-950/60 px-5 py-4 border-b border-slate-800/80 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping"></span>
+                      <h4 className="font-bold text-slate-200 text-sm tracking-wide uppercase">🔐 INSTRUCTOR PANEL — Confidential</h4>
+                    </div>
+                  </div>
+                  <div className="p-5 text-sm space-y-4">
+                    <p className="text-slate-400 text-xs">
+                      ⚠️ This banner is only visible to authorized instructors. If you are a student reading this, you have successfully compromised a session token or escalated your privileges.
+                    </p>
+                    <div className="flex items-center justify-between bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-red-500/10 rounded-lg text-red-400 border border-red-500/20">
+                          <FileLock2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-slate-200 block">Final_Exam_Answers.pdf</span>
+                          <span className="text-[11px] text-slate-500 font-mono">Location: /courses/SEC-202/files/restricted</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowExamAnswers(true)}
+                        className="bg-red-600 hover:bg-red-500 text-white font-semibold text-xs px-4 py-2 rounded-xl transition-all shadow-md shadow-red-950/30 cursor-pointer"
+                      >
+                        View Answers
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-slate-300">Enrolled Courses</h3>
                 {currentUser?.role === 'teacher' && (
@@ -363,8 +550,11 @@ export default function Home() {
                   </div>
                 ))}
               </div>
+
+
             </div>
           )}
+
           {/* --- COURSES TAB (DETAIL VIEW) --- */}
           {activeTab === 'courses' && selectedCourse && (
             <div className="flex flex-col md:flex-row gap-6 items-start h-full">
