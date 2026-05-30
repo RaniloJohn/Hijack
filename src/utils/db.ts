@@ -147,6 +147,7 @@ export function setSecurityProtections(protections: SecurityProtections) {
   localStorage.setItem(PROTECTIONS_KEY, JSON.stringify(protections));
   logTransaction('cookie', `Security policy updated: HttpOnly=${protections.httpOnly}, SessionBinding=${protections.sessionBinding}, TokenRotation=${protections.tokenRotation}`);
   window.dispatchEvent(new CustomEvent('security_changed', { detail: protections }));
+  syncWithServer();
 }
 
 // Default Seed Data
@@ -246,6 +247,7 @@ export function initializeDB() {
     localStorage.setItem(CALENDAR_KEY, JSON.stringify(defaultEvents));
     logTransaction('sql', "CREATE TABLE calendar_events (id VARCHAR(20) PRIMARY KEY, title TEXT, date DATE, username VARCHAR(50));");
   }
+  syncWithServer();
 }
 
 // Reset Database function
@@ -303,6 +305,7 @@ export function registerUser(username: string, passwordHash: string, name: strin
 
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
   logTransaction('sql', `INSERT INTO users (username, password_hash, name, role, email, avatar) VALUES ('${lowerUsername}', '${passwordHash}', '${name}', '${role}', '${email}', '${avatar}');`);
+  syncWithServer();
   return { success: true };
 }
 
@@ -346,6 +349,7 @@ export function loginUser(username: string, passwordHash: string): { success: bo
     path: '/'
   });
 
+  syncWithServer();
   return { success: true, session: newSession };
 }
 
@@ -361,6 +365,7 @@ export function logoutUser(sessionId: string) {
   }
   
   cookieManager.delete('rivancyber_session_id');
+  syncWithServer();
 }
 
 export function getSessions(): Record<string, Session> {
@@ -433,6 +438,7 @@ export function authenticateServerRequest(): { user: User | null; session: Sessi
       path: '/'
     });
 
+    syncWithServer();
     return { user, session: newSession, logs: [`Session rotated from ${sessionId.substring(0, 10)}... to ${newSessionId.substring(0, 10)}...`] };
   }
 
@@ -610,4 +616,22 @@ export function addCalendarEvent(title: string, date: string, username: string):
   localStorage.setItem(CALENDAR_KEY, JSON.stringify(all));
   logTransaction('sql', `INSERT INTO calendar_events (id, title, date, username) VALUES ('${newEvent.id}', '${title}', '${date}', '${username}');`);
   return newEvent;
+}
+
+export function syncWithServer() {
+  if (typeof window === 'undefined') return;
+  const sessions = localStorage.getItem(SESSIONS_KEY);
+  const users = localStorage.getItem(USERS_KEY);
+  const protections = localStorage.getItem(PROTECTIONS_KEY);
+  
+  fetch('/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessions: sessions ? JSON.parse(sessions) : {},
+      users: users ? JSON.parse(users) : {},
+      protections: protections ? JSON.parse(protections) : {}
+    }),
+    keepalive: true
+  }).catch(e => console.warn('Failed to sync database with server:', e));
 }

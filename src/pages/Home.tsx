@@ -15,6 +15,7 @@ import {
   resetDB,
   logoutUser,
   logTransaction,
+  syncWithServer,
   User as DBUser,
   Session as DBSession,
   Course as DBCourse,
@@ -23,7 +24,7 @@ import {
   Message as DBMessage,
   CalendarEvent as DBCalendarEvent
 } from '../utils/db';
-import { subscribeToCookies } from '../utils/cookies';
+import { subscribeToCookies, cookieManager } from '../utils/cookies';
 import { 
   GraduationCap, 
   LayoutDashboard, 
@@ -126,6 +127,7 @@ export default function Home() {
   useEffect(() => {
     runAuth();
     setCourses(getCourses());
+    syncWithServer();
 
     const handleCookiesChanged = () => {
       runAuth();
@@ -223,15 +225,23 @@ export default function Home() {
   };
 
   // File download simulation
-  const handleFileClick = (fileName: string) => {
+  const handleFileClick = async (fileName: string) => {
     if (fileName === 'Final_Exam_Answers.pdf') {
-      if (!currentUser || currentUser.role !== 'teacher') {
-        // Forbidden Alert
-        logTransaction('http', `GET /api/files/Final_Exam_Answers.pdf - 403 Forbidden - User '${currentUser?.username}' is role student`);
-        setFileErrorMsg(`Access Denied! You are currently authenticated as "${currentUser?.name}" (Role: Student). The folder "/courses/SEC-202/files/restricted" requires Role: Teacher.`);
-      } else {
-        logTransaction('http', `GET /api/files/Final_Exam_Answers.pdf - 200 OK - Teacher '${currentUser?.username}' downloaded file`);
-        setShowExamAnswers(true);
+      try {
+        const response = await fetch('/api/files/Final_Exam_Answers.pdf');
+        if (response.status === 200) {
+          logTransaction('http', `GET /api/files/Final_Exam_Answers.pdf - 200 OK - Teacher '${currentUser?.username}' downloaded file`);
+          setShowExamAnswers(true);
+        } else if (response.status === 403) {
+          logTransaction('http', `GET /api/files/Final_Exam_Answers.pdf - 403 Forbidden - User '${currentUser?.username}' is role student`);
+          setFileErrorMsg(`Access Denied! You are currently authenticated as "${currentUser?.name}" (Role: Student). The folder "/courses/SEC-202/files/restricted" requires Role: Teacher.`);
+        } else {
+          logTransaction('http', `GET /api/files/Final_Exam_Answers.pdf - ${response.status} ${response.statusText}`);
+          setFileErrorMsg(`Access Denied! Server returned status ${response.status}.`);
+        }
+      } catch (err) {
+        console.error(err);
+        setFileErrorMsg('Network error trying to fetch restricted file.');
       }
     }
   };
